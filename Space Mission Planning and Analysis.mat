@@ -1,0 +1,38 @@
+% Define constants
+G = 6.67430e-11; % Gravitational constant (m^3/kg/s^2)
+M = 5.972e24; % Mass of the Earth (kg)
+R = 6371e3; % Radius of the Earth (m)
+
+% Define initial conditions
+r0 = R + 500e3; % Initial altitude above the Earth's surface (m)
+v0 = sqrt(G * M / r0); % Initial velocity (m/s)
+theta0 = 30; % Initial launch angle (degrees)
+
+% Convert initial conditions to Cartesian coordinates
+x0 = r0 * cosd(theta0);
+y0 = r0 * sind(theta0);
+vx0 = v0 * cosd(theta0);
+vy0 = v0 * sind(theta0);
+
+% Define time span for simulation (e.g., 1 orbit)
+tspan = [0, 2*pi*r0/v0];
+
+% Define ODE function for orbital motion
+odefun = @(t, y) [y(3); y(4); -G * M * y(1) / (sqrt(y(1)^2 + y(2)^2))^3; -G * M * y(2) / (sqrt(y(1)^2 + y(2)^2))^3];
+
+% Solve ODEs numerically
+[t, y] = ode45(odefun, tspan, [x0; y0; vx0; vy0]);
+
+% Plot trajectory
+figure;
+plot(y(:, 1), y(:, 2));
+xlabel('X Position (m)');
+ylabel('Y Position (m)');
+title('Spacecraft Trajectory');
+axis equal;
+
+% Calculate and display orbital parameters
+r_min = min(sqrt(y(:, 1).^2 + y(:, 2).^2)) - R; % Minimum altitude (m)
+r_max = max(sqrt(y(:, 1).^2 + y(:, 2).^2)) - R; % Maximum altitude (m)
+fprintf('Minimum altitude: %.2f km\n', r_min / 1000);
+fprintf('Maximum altitude: %.2f km\n', r_max / 1000);
