@@ -1,0 +1,96 @@
+% Define reaction network
+reactions = {
+    'H2 + CR -> H + H',     % Cosmic ray ionization of H2
+    'H2 + CR -> H2+ + e-',  % Cosmic ray ionization of H2
+    'H2+ + e- -> H + H',    % Dissociative recombination of H2+
+    'H2 + H -> H + H2',     % H2 formation
+    'H + H2 -> H2 + H',     % H2 formation
+    'H + H -> H2',          % H2 formation
+    'H + e- -> H-',         % Electron attachment to H
+    'H- + H -> H2'          % H2 formation from H-
+};
+
+% Define rate coefficients (in cm^3/s)
+k = [1e-16, 1e-16, 1e-7, 1e-15, 1e-15, 1e-15, 1e-7, 1e-15];
+
+% Initial abundances (in cm^-3)
+abundances = struct('H', 1e6, 'H2', 1e5, 'H2+', 1, 'e-', 1e-6, 'H-', 1e-8);
+
+% Time parameters
+t_start = 0;  % Start time (years)
+t_end = 1e6;  % End time (years)
+dt = 1e4;     % Time step (years)
+
+% Initialize time and abundance arrays
+t_values = t_start:dt:t_end;
+num_species = numel(fieldnames(abundances));
+abundance_values = zeros(num_species, numel(t_values));
+species_names = fieldnames(abundances);
+
+% Run simulation
+for i = 1:numel(t_values)
+    t = t_values(i);
+    for j = 1:numel(reactions)
+        reactants = split(reactions{j}, ' -> ');
+        reactants = split(reactants{1}, ' + ');
+        products = split(reactants{2}, ' + ');
+        
+        k_f = k(j);
+        k_r = k_f / 100;  % Reverse rate coefficient (assumed 100 times smaller)
+        
+        forward_rate = k_f;
+        reverse_rate = k_r;
+        for k = 1:numel(reactants)
+            species_name = reactants{k};
+            if species_name(end) == '+'
+                species_name = species_name(1:end-1);
+                forward_rate = forward_rate * abundances.(species_name);
+            else
+                forward_rate = forward_rate * abundances.(species_name);
+            end
+        end
+        for k = 1:numel(products)
+            species_name = products{k};
+            if species_name(end) == '+'
+                species_name = species_name(1:end-1);
+                reverse_rate = reverse_rate * abundances.(species_name);
+            else
+                reverse_rate = reverse_rate * abundances.(species_name);
+            end
+        end
+        
+        reaction_rate = forward_rate - reverse_rate;
+        
+        for k = 1:numel(reactants)
+            species_name = reactants{k};
+            if species_name(end) == '+'
+                species_name = species_name(1:end-1);
+                abundances.(species_name) = abundances.(species_name) - reaction_rate * dt;
+            else
+                abundances.(species_name) = abundances.(species_name) - reaction_rate * dt;
+            end
+        end
+        for k = 1:numel(products)
+            species_name = products{k};
+            if species_name(end) == '+'
+                species_name = species_name(1:end-1);
+                abundances.(species_name) = abundances.(species_name) + reaction_rate * dt;
+            else
+                abundances.(species_name) = abundances.(species_name) + reaction_rate * dt;
+            end
+        end
+    end
+    for j = 1:num_species
+        species_name = species_names{j};
+        abundance_values(j, i) = abundances.(species_name);
+    end
+end
+
+% Plot abundance evolution
+figure;
+semilogy(t_values, abundance_values);
+xlabel('Time (years)');
+ylabel('Abundance (cm^{-3})');
+legend(species_names);
+title('Astrochemistry Simulation: Time Evolution of Abundances');
+grid on;
